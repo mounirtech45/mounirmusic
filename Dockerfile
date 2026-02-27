@@ -1,19 +1,36 @@
-FROM nikolaik/python-nodejs:python3.9-nodejs16
+# استخدام صورة بايثون الرسمية كقاعدة
+FROM python:3.10-slim-bookworm
 
-# Updating Packages
-RUN apt update && apt upgrade -y
-RUN apt install git curl python3-pip ffmpeg -y
+# تحديث النظام وتثبيت التبعيات الأساسية (تجنب مشاكل المستودعات الخارجية)
+RUN apt-get update && apt-get upgrade -y && \
+    apt-get install -y --no-install-recommends \
+    curl \
+    git \
+    ffmpeg \
+    build-essential \
+    python3-dev \
+    libffi-dev \
+    libssl-dev \
+    opus-tools \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copying Requirements
-COPY requirements.txt /requirements.txt
+# تثبيت Node.js (الإصدار 18 المستقر)
+RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
+    apt-get install -y nodejs && \
+    npm install -g npm@latest
 
-# Installing Requirements
-RUN cd /
-RUN pip3 install --upgrade pip
-RUN pip3 install -U -r requirements.txt
-RUN mkdir /MusicPlayer
-WORKDIR /MusicPlayer
-COPY startup.sh /startup.sh
+# تحديد مجلد العمل
+WORKDIR /app
 
-# Running Music Player Bot
-CMD ["/bin/bash", "/startup.sh"]
+# نسخ ملف المتطلبات أولاً للاستفادة من الـ Cache
+COPY requirements.txt .
+
+# تثبيت مكتبات بايثون وتحديث pip
+RUN pip3 install --no-cache-dir -U pip && \
+    pip3 install --no-cache-dir -U -r requirements.txt
+
+# نسخ باقي ملفات المشروع
+COPY . .
+
+# أمر التشغيل النهائي
+CMD ["python3", "main.py"]
